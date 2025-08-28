@@ -71,4 +71,36 @@ const generateToken = (userId, expires, grantType) => {
   );
 };
 
-export { generateCode, getCSRFToken, validateCSRFToken, generateToken };
+const getExpiryTime = (expireAt) => {
+  const durationFormat = expireAt
+    .charAt(expireAt.length - 1)
+    .toLocaleLowerCase();
+  const duration = parseInt(expireAt.substring(0, expireAt.length - 1));
+
+  if (isNaN(duration)) {
+    console.log('Invalid duration value. Returning default expiry.');
+    return 60 * 1000; // Default to 1 minute
+  }
+
+  switch (durationFormat) {
+    case 's':
+      return duration * 1000;
+    case 'm':
+      return 60 * duration * 1000;
+    case 'h':
+      return 60 * 60 * duration * 1000;
+    case 'd':
+      return 60 * 60 * 24 * duration * 1000;
+    default:
+      console.log('Invalid format. Returning default expiry.');
+      return 60 * 1000; // Default to 1 minute
+  }
+};
+
+export {
+  generateCode,
+  getCSRFToken,
+  validateCSRFToken,
+  generateToken,
+  getExpiryTime
+};

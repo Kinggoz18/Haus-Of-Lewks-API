@@ -1,15 +1,7 @@
-import AdminModel from '../models/Admin';
-
-const bcrypt = require('bcryptjs');
-const Auth = require('../models/Auth');
-
-const passport = require('passport');
-
-const {
-  reactivateDataFromServices
-} = require('../middleware/deleteUserAction');
-
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
+import AdminModel from '../models/Admin.js';
+import passport from 'passport';
+import GoogleStrategy from 'passport-google-oauth20';
+import UserRolesEnum from '../util/enums/UserRoles.js';
 
 // const applePrivateKeyPath = path.join(process.env.APPLE_PRIVATE_KEY);
 
@@ -31,22 +23,22 @@ const PassportConfig = (app) => {
         passReqToCallback: true // Pass the request to the callback to access query parameters
       },
       async function (req, accessToken, refreshToken, profile, cb) {
-        console.log('Calling google strategy');
+        console.log('Passport google strategy');
 
         try {
           console.log(req.query);
           const state = req.query.state ? JSON.parse(req.query.state) : {};
-          const { mode, isNative, firstName, lastName } = state;
+          const { mode } = state;
           const searchUser = await AdminModel.findOne({
             googleId: profile.id
           }).select('-password');
 
           //Create the user
-          if (!searchUser) {
+          if (!searchUser && mode === 'signup') {
             const user = await AdminModel.create({
               googleId: profile.id,
               googleEmail: profile.emails[0].value,
-              role: 'Admin'
+              role: 'Employee'
             });
 
             return cb(null, user);

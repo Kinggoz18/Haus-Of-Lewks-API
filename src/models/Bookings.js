@@ -17,7 +17,8 @@ const serviceSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Service category is required']
     },
-    duration: { //The total duation, including the add ons
+    duration: {
+      //The total duation, including the add ons
       type: Number, // in minutes
       required: [true, 'Service Duration is required']
     },
@@ -52,7 +53,8 @@ export const BookingSchema = new mongoose.Schema(
       type: String,
       enum: BookingStatusEnum,
       required: [true, 'Booking status is required']
-    }
+    },
+    total: { type: Number, default: 0 }
   },
   { timestamps: true }
 );

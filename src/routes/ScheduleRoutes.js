@@ -24,14 +24,28 @@ export class ScheduleRoute {
    */
   async initRoutes(router) {
     try {
-      router.post(`${this.basePath}/create`, this.scheduleService.createSchedule);
-      router.post(`${this.basePath}/update`, this.scheduleService.updateSchedule);
-      router.post(`${this.basePath}/delete`, this.scheduleService.deleteSchedule);
+      router.post(
+        `${this.basePath}/create`,
+        this.scheduleService.createSchedule
+      );
+      router.post(
+        `${this.basePath}/update`,
+        this.scheduleService.updateSchedule
+      );
+      router.post(
+        `${this.basePath}/remove-slot`,
+        this.scheduleService.removeTimeslot
+      );
+      router.post(
+        `${this.basePath}/delete`,
+        this.scheduleService.deleteSchedule
+      );
       router.get(
         `${this.basePath}/:scheduleId`,
         this.scheduleService.getScheduleById
       );
       router.get(`${this.basePath}`, this.scheduleService.getAllSchedule);
+      router.post(`${this.basePath}/date`, this.scheduleService.getByDate);
     } catch (error) {
       console.error(error?.messsage ?? error ?? 'Failed to initialize routes');
     }

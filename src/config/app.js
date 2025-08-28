@@ -3,6 +3,7 @@ import cors from 'cors';
 import express from 'express';
 import errorHandler from '../util/errorHandler.js';
 import { APIRoutes } from '../routes/Routes.js';
+import PassportConfig from './passport.js';
 
 const app = express();
 
@@ -35,6 +36,7 @@ const initExpressApp = async (databaseClient) => {
     const corsOption = {
       origin: [serverEnvVaiables.cmsFrontendUrl, serverEnvVaiables.frontendUrl],
       methods: ['GET', 'POST', 'DELETE', 'PUT'],
+      credentials: true,
       allowedHeaders: [
         'Content-Type',
         'Authorization',
@@ -51,6 +53,9 @@ const initExpressApp = async (databaseClient) => {
     app.use(express.urlencoded({ extended: false }));
 
     app.set('trust proxy', 1);
+    //Set up passport
+    PassportConfig(app);
+
     //Initalize routes
     const routes = new APIRoutes();
     const appRouter = await routes.initAllRoutes();

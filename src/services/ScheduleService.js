@@ -139,6 +139,61 @@ export class ScheduleService {
   };
 
   /**
+   * Remove a timeslot from a schedule
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @returns {Promise<void>}
+   */
+  removeTimeslot = async (req, res) => {
+    const { scheduleId, slot } = req.body;
+
+    try {
+      const scheduleToUpdate = await ScheduleModel.findById(scheduleId);
+      if (!scheduleToUpdate) {
+        const response = ReturnObject(false, 'Schedule not found');
+        console.error({ Error: 'Failed to find the schedule to update' });
+        return res.status(404).send(response);
+      }
+
+      // Ensure availableSlots is an array
+      if (!Array.isArray(scheduleToUpdate.availableSlots)) {
+        scheduleToUpdate.availableSlots = [];
+      }
+
+      // Remove the timeslot (assuming slot is a string like "14:00")
+      const updatedSlots = scheduleToUpdate.availableSlots.filter(
+        (s) => s !== slot
+      );
+
+      // Check if anything was actually removed
+      if (updatedSlots.length === scheduleToUpdate.availableSlots.length) {
+        const response = ReturnObject(false, 'Timeslot not found in schedule');
+        return res.status(404).send(response);
+      }
+
+      scheduleToUpdate.availableSlots = updatedSlots;
+      await scheduleToUpdate.save();
+
+      const updated = await ScheduleModel.findById(scheduleToUpdate._id);
+      if (!updated) {
+        const response = ReturnObject(false, 'Updated schedule not found');
+        console.error({ Error: 'Failed to find the updated schedule' });
+        return res.status(404).send(response);
+      }
+
+      const response = ReturnObject(true, updated);
+      return res.status(200).send(response);
+    } catch (error) {
+      const response = ReturnObject(
+        false,
+        'Something went wrong while removing timeslot'
+      );
+      console.error({ Error: error?.message || error });
+      return res.status(500).send(response); // 500 for unexpected server errors
+    }
+  };
+
+  /**
    * Delete a schedule
    * @param {import('express').Request} req
    * @param {import('express').Response} res
@@ -205,7 +260,7 @@ export class ScheduleService {
   };
 
   /**
-   * Delete a schedule
+   * Delete all schedule
    * @param {import('express').Request} req
    * @param {import('express').Response} res
    * @returns {ReturnType}
@@ -223,6 +278,41 @@ export class ScheduleService {
       return res.status(500).send(response);
     }
   };
+
+  /**
+   * Get a schedule by date
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @returns {Promise<void>}
+   */
+  getByDate = async (req, res) => {
+    try {
+      const { date } = req.body;
+
+      if (!date) {
+        return res.status(400).send(ReturnObject(false, 'Date is required'));
+      }
+
+      const jsDate = new Date(date);
+
+      const year = jsDate.getFullYear().toString();
+      const month = jsDate.toLocaleString('en-US', { month: 'long' });
+      const day = jsDate.getDate().toString().padStart(2, '0');
+
+      const queriedSchedule = await ScheduleModel.findOne({ year, month, day });
+
+      const response = ReturnObject(true, queriedSchedule);
+      return res.status(200).send(response);
+    } catch (error) {
+      console.error(error);
+      const response = ReturnObject(
+        false,
+        'Something went wrong while getting schedule by date'
+      );
+      return res.status(500).send(response);
+    }
+  };
+
   /**
    * Updates time slots after a schedule has been made
    * @param {String} scheduleId

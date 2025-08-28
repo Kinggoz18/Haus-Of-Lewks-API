@@ -3,18 +3,23 @@ import { ReturnObject } from '../util/returnObject.js';
 
 /**
  * Login admin handler
- * TODO: Encrypt security key
  * @param {import('express').Request} req
  * @param {import('express').Response} res
  * @param {import('express').NextFunction} next
  */
-const signupAdminMiddleware = (req, res, next) => {
+const signupAdminMiddleware = async (req, res, next) => {
   try {
-    const { secretKey } = req.query;
+    const { signupcode, mode } = req.query;
+    if ((!signupcode && !mode) || !serverEnvVaiables.signupSecret) {
+      const response = ReturnObject(false, 'Unauthorized access');
+      return res.status(404).send(response);
+    }
 
-    if (!secretKey) next();
+    if (!signupcode && mode === 'login') next();
 
-    if (secretKey != serverEnvVaiables.signupSecret) {
+    const hashedCode = await hashCode(serverEnvVaiables.signupSecret);
+
+    if (signupcode != hashedCode) {
       const response = ReturnObject(false, 'Unauthorized access');
       return res.status(404).send(response);
     }
@@ -27,6 +32,17 @@ const signupAdminMiddleware = (req, res, next) => {
     );
     return res.status(400).send(response);
   }
+};
+
+const hashCode = async (code) => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(code);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashedCode = Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  return hashedCode;
 };
 
 export default signupAdminMiddleware;

@@ -25,13 +25,18 @@ export class UserRoutes {
    */
   async initRoutes(router) {
     try {
-      router.post(
+      router.get(
         `${this.basePath}/login`,
         signupAdminMiddleware,
         this.userService.googleAuthHandler
       );
 
-      router.post(
+      router.get(
+        `${this.basePath}/:userId`,
+        this.userService.getAuthenticatedUser
+      );
+
+      router.get(
         `${this.basePath}/login/callback`,
         this.userService.googleAuthHandlerCallback
       );
@@ -45,6 +50,7 @@ export class UserRoutes {
         `${this.basePath}/customer/unblock/:customerId`,
         this.userService.unBlockUser
       );
+      router.get(`${this.basePath}/logout/:userId`, this.userService.logout);
     } catch (error) {
       console.error(error?.messsage ?? error ?? 'Failed to initialize routes');
     }

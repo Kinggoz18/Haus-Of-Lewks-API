@@ -1,9 +1,14 @@
 import passport from 'passport';
 import UserModel from '../models/Users.js';
 import { ReturnObject } from '../util/returnObject.js';
-import { generateToken, getCSRFToken } from '../util/generateCode.js';
+import {
+  generateToken,
+  getCSRFToken,
+  getExpiryTime
+} from '../util/generateCode.js';
 import AuthCodeModel from '../models/AuthCodes.js';
 import { serverEnvVaiables } from '../config/enviornment.js';
+import AdminModel from '../models/Admin.js';
 
 /**
  * @class UserService
@@ -24,14 +29,14 @@ class UserService {
   googleAuthHandler = (req, res, next) => {
     try {
       console.log('googleSignUp');
-      const { mode, isNative, firstName, lastName } = req.query;
+      const { mode } = req.query;
       passport.authenticate('google', {
         scope: [
           'https://www.googleapis.com/auth/userinfo.profile',
           'https://www.googleapis.com/auth/userinfo.email'
         ],
         prompt: 'consent',
-        state: JSON.stringify({ mode, isNative, firstName, lastName })
+        state: JSON.stringify({ mode })
       })(req, res, next);
     } catch (error) {
       console.log('Error while saving user', error);
@@ -44,10 +49,12 @@ class UserService {
    * @param {import('express').Request} req
    * @param {import('express').Response} res
    */
-  googleAuthHandlerCallback = (req, res) => {
+  googleAuthHandlerCallback = (req, res, next) => {
     const appUrl = (params) =>
-      `${serverEnvVaiables.cmsFrontendUrl}/login?${params?.toString()}`;
+      `${serverEnvVaiables.cmsFrontendUrl}/admin/login?${params?.toString()}`;
 
+    console.log('Google auth handler');
+    const isDev = serverEnvVaiables?.nodeEnv === 'development';
     try {
       passport.authenticate('google', async (err, user, info) => {
         if (err) {
@@ -70,13 +77,14 @@ class UserService {
         }
 
         const userId = user._id.toString();
-
+        console.log({ userId });
         // Fetch the most recently updated AuthCodeModel
         const mostRecentAuthCode = await AuthCodeModel.findOne({
           userId: userId
         })
           .sort({ updatedAt: -1 })
           .limit(1);
+
         const accessToken = generateToken(userId, '15m', 'accessToken'); //Expires in 15m;
 
         let csrfToken;
@@ -99,6 +107,7 @@ class UserService {
 
           refreshToken = generateToken(userId, '7d', 'refreshToken'); //Expires in 7 days
           rtExpiresAt = new Date(Date.now() + getExpiryTime('7d')); // 7 days expiry
+
           //Log the user in
           const userAuth = await AuthCodeModel.create({
             userId: userId,
@@ -123,7 +132,7 @@ class UserService {
         console.log('Auth codes created');
 
         const params = new URLSearchParams({
-          userId: userData?._id,
+          userId: userId,
           token: csrfToken
         });
 
@@ -211,6 +220,38 @@ class UserService {
   };
 
   /**
+   * Gets a customer by their Id
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @returns {import('../util/returnObject').ResponseType}
+   */
+  getAuthenticatedUser = async (req, res) => {
+    try {
+      const { userId } = req.params;
+      console.log({ userId });
+      const customer = await AdminModel.findOne({
+        _id: userId,
+        role: 'Employee'
+      });
+
+      //If the customer does not exist
+      if (!customer) {
+        const response = ReturnObject(false, 'User not found');
+        return res.status(404).send(response);
+      }
+
+      const response = ReturnObject(true, customer);
+      return res.status(200).send(response);
+    } catch (error) {
+      const response = ReturnObject(
+        false,
+        'Something went wrong while fetching authorized user'
+      );
+      return res.status(400).send(response);
+    }
+  };
+
+  /**
    * Gets all customers
    * @param {import('express').Request} req
    * @param {import('express').Response} res
@@ -272,6 +313,43 @@ class UserService {
         false,
         error.message ?? 'Failed to block customer for missed booking'
       );
+      return res.status(400).send(response);
+    }
+  };
+
+  logout = async (req, res) => {
+    const { userId } = req.params;
+    const isDev = serverEnvVaiables?.nodeEnv === 'development';
+
+    try {
+      const user = await AdminModel.findById(userId);
+      if (!user) {
+        const response = ReturnObject(false, 'User does not exist.');
+        return res.status(404).send(response);
+      }
+
+      await AuthCodeModel.deleteMany({ userId });
+
+      const cookieOptions = {
+        httpOnly: true,
+        maxAge: getExpiryTime('365d'),
+        sameSite: isDev ? 'lax' : 'none',
+        secure: !isDev,
+        partitioned: !isDev
+      };
+
+      //Delete the cookies
+      res.clearCookie('accessToken', cookieOptions);
+
+      res.clearCookie('refreshToken', cookieOptions);
+
+      res.clearCookie('csrf_token', cookieOptions);
+
+      const response = ReturnObject(true, 'Successfully Logged Out');
+      return res.status(200).send(response);
+    } catch (error) {
+      const response = ReturnObject(false, 'Failed to log out user');
+      console.error('Error loggin user out', error);
       return res.status(400).send(response);
     }
   };

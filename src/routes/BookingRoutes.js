@@ -33,8 +33,8 @@ export class BookingRoute {
         this.bookingService.getBookingById
       );
       router.post(
-        `${this.basePath}/update-status`,
-        this.bookingService.updateBookingStatusById
+        `${this.basePath}/update`,
+        this.bookingService.updateBookingById
       );
       router.post(
         `${this.basePath}/find-user-bookings`,

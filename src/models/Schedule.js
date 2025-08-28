@@ -12,10 +12,7 @@ const ScheduleSchema = new Schema({
   ] // Precomputed during booking e.g., ['10:00', '12:00', '14:00']
 });
 
-ScheduleSchema.index(
-  { year: 1, month: 1, day: 1, startTime: 1, endTime: 1 },
-  { unique: true }
-);
+ScheduleSchema.index({ year: 1, month: 1, day: 1 }, { unique: true });
 
 const ScheduleModel = mongoose.model('Schedule', ScheduleSchema);
 export default ScheduleModel;

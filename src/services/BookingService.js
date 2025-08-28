@@ -268,10 +268,10 @@ export class BookingService {
    * @param {import('express').Response} req
    * @param {import('express').Request} res
    */
-  updateBookingStatusById = async (req, res) => {
-    const { bookingId, status } = req.body;
+  updateBookingById = async (req, res) => {
+    const { bookingId, status, price } = req.body;
 
-    if (!bookingId || !status) {
+    if (!bookingId || (!status && !price)) {
       const response = ReturnObject(false, 'Invalid request arguments');
       return res.status(400).send(response);
     }
@@ -303,7 +303,8 @@ export class BookingService {
         }
       }
 
-      booking.status = status;
+      booking.status = status ? status : booking.status;
+      booking.total = price ? price : booking.total;
 
       await booking.save();
 

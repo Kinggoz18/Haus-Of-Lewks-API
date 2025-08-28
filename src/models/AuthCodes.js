@@ -12,9 +12,7 @@ const authCodeSchema = new mongoose.Schema(
     },
 
     //======={for verification}=============
-    refreshToken: codeSchema,
-    atExpiresAt: { type: Date },
-    rtExpiresAt: { type: Date }
+    refreshToken: codeSchema
   },
   { timestamps: true }
 );
