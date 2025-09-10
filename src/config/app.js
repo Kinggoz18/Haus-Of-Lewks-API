@@ -4,6 +4,7 @@ import express from 'express';
 import errorHandler from '../util/errorHandler.js';
 import { APIRoutes } from '../routes/Routes.js';
 import PassportConfig from './passport.js';
+import multerConfig from './mutler.js';
 
 const app = express();
 
@@ -58,7 +59,7 @@ const initExpressApp = async (databaseClient) => {
 
     //Initalize routes
     const routes = new APIRoutes();
-    const appRouter = await routes.initAllRoutes();
+    const appRouter = await routes.initAllRoutes(multerConfig);
 
     app.use(serverEnvVaiables.basePath, appRouter);
     //Middleware

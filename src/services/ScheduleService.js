@@ -399,18 +399,20 @@ export class ScheduleService {
     try {
       const start = Number(startTime.split(':')[0]);
       const end = Number(endTime.split(':')[0]);
-      const availableSlots = [startTime];
+      const availableSlots = [];
 
       let currentSlot = start;
 
-      while (currentSlot < end - 1) {
-        currentSlot += 1;
-
+      while (true) {
         // Reset to 0 at midnight
         if (currentSlot === 24) currentSlot = 0;
         let postfix = currentSlot < 12 ? 'am' : 'pm';
         let hour = currentSlot.toString().padStart(2, '0');
         availableSlots.push(`${hour}:00${postfix}`);
+
+        if (currentSlot >= end) break;
+
+        currentSlot += 1;
       }
 
       return availableSlots;

@@ -1,17 +1,26 @@
+import CategoryModel from '../models/HairCategory.js';
 import HairServicesModel from '../models/HairServices.js';
 import ScheduleModel from '../models/Schedule.js';
+import AddOnsModel from '../models/ServiceAddOns.js';
 import { ReturnObject } from '../util/returnObject.js';
+import { DigitalOceanSpacesManager } from './DigitalOceanService.js';
 
 export class HairServices {
-  constructor() {}
+  /**
+   * Default constructor
+   * @param {DigitalOceanSpacesManager} spacesManager
+   */
+  constructor(spacesManager) {
+    this.spacesManager = spacesManager;
+  }
 
   /**
-   * Get booking by id
+   * Add a hair service
    * @param {import('express').Request} req
    * @param {import('express').Response} res
    */
   addHairService = async (req, res) => {
-    const { title, price, imageLink, category, duration, addOns } = req.body;
+    const { title, price, category, duration } = req.body;
 
     if (!title) {
       const response = ReturnObject(false, 'Hair service title is required');
@@ -19,10 +28,6 @@ export class HairServices {
     }
     if (!price) {
       const response = ReturnObject(false, 'Hair service price is required');
-      return res.status(400).send(response);
-    }
-    if (!imageLink) {
-      const response = ReturnObject(false, 'Hair service image is required');
       return res.status(400).send(response);
     }
     if (!category) {
@@ -38,9 +43,7 @@ export class HairServices {
       const newService = await HairServicesModel.create({
         title,
         price,
-        imageLink,
         category,
-        addOns: addOns ?? [],
         duration
       });
 
@@ -57,8 +60,152 @@ export class HairServices {
   };
 
   /**
+   * Add a category
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   */
+  addCategory = async (req, res) => {
+    const file = req?.file;
+    const { title } = req.body;
+
+    if (!file) {
+      const response = ReturnObject(false, 'File is missing');
+      return res.status(400).send(response);
+    }
+
+    if (!title) {
+      const response = ReturnObject(false, 'Hair service title is required');
+      return res.status(400).send(response);
+    }
+
+    try {
+      const check = await CategoryModel.findOne({ title: title });
+      if (check) {
+        const response = ReturnObject(false, 'Category already exists');
+        return res.status(400).send(response);
+      }
+
+      const coverLink = await this.spacesManager.uploadImage(file?.buffer);
+      const newCategory = await CategoryModel.create({
+        title,
+        coverLink
+      });
+
+      const response = ReturnObject(true, newCategory);
+      return res.status(201).send(response);
+    } catch (error) {
+      console.log({ error });
+      const response = ReturnObject(
+        false,
+        'Something went wrong while adding new hair service'
+      );
+      return res.status(400).send(response);
+    }
+  };
+
+  /**
+   * Add an add on
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   */
+  addAddOn = async (req, res) => {
+    const { title, price, service, duration } = req.body;
+
+    if (!title) {
+      const response = ReturnObject(false, 'Add on title is required');
+      return res.status(400).send(response);
+    }
+    if (!price) {
+      const response = ReturnObject(false, 'Add on price is required');
+      return res.status(400).send(response);
+    }
+    if (!duration) {
+      const response = ReturnObject(false, 'Add on duration is required');
+      return res.status(400).send(response);
+    }
+
+    try {
+      const newAddon = await AddOnsModel.create({
+        title,
+        price,
+        service,
+        duration
+      });
+
+      const response = ReturnObject(true, newAddon);
+      return res.status(201).send(response);
+    } catch (error) {
+      console.log({ error });
+      const response = ReturnObject(
+        false,
+        'Something went wrong while adding new hair service'
+      );
+      return res.status(400).send(response);
+    }
+  };
+
+  /**
+   * Remove a category
+   * @param {*} req
+   * @param {*} res
+   * @returns
+   */
+  removeCategory = async (req, res) => {
+    const { id } = req.params;
+    try {
+      if (!id) {
+        const response = ReturnObject(false, 'Invalid request argument');
+        return res.status(400).send(response);
+      }
+
+      //Check the category exists
+      const categoryToDelete = await CategoryModel.findById(id);
+      if (!categoryToDelete) {
+        const response = ReturnObject(false, 'Media not found');
+        return res.status(404).send(response);
+      }
+
+      //Delete the coverLink, the hair services and the category
+      await this.spacesManager.deleteSingleResource(
+        categoryToDelete?.coverLink
+      );
+      await HairServicesModel.deleteMany({ category: categoryToDelete?.title });
+      await CategoryModel.deleteOne({ _id: categoryToDelete?._id });
+
+      const response = ReturnObject(true, 'deleted');
+      return res.status(200).send(response);
+    } catch (error) {
+      const response = ReturnObject(
+        false,
+        'Sorry, something went wrong while removing hair service'
+      );
+      return res.status(400).send(response);
+    }
+  };
+
+  /**
+   * Remove an add on
+   * @param {*} req
+   * @param {*} res
+   * @returns
+   */
+  removeAddon = async (req, res) => {
+    const { id } = req.params;
+    try {
+      await AddOnsModel.deleteOne({ _id: id });
+      const response = ReturnObject(true, 'deleted');
+      return res.status(200).send(response);
+    } catch (error) {
+      const response = ReturnObject(
+        false,
+        'Sorry, something went wrong while trying to remove add on'
+      );
+      return res.status(400).send(response);
+    }
+  };
+
+  /**
    * Get booking by id
-   * TODO: This should be a protected route. Add validate request here
    * @param {import('express').Request} req
    * @param {import('express').Response} res
    */
@@ -66,7 +213,7 @@ export class HairServices {
     const { id } = req.params;
     try {
       await HairServicesModel.deleteOne({ _id: id });
-      const response = ReturnObject(true, 'Hair service removed');
+      const response = ReturnObject(true, 'deleted');
       return res.status(200).send(response);
     } catch (error) {
       const response = ReturnObject(
@@ -79,13 +226,11 @@ export class HairServices {
 
   /**
    * Update a hair service by id
-   * TODO: This should be a protected route. Add validate request here
    * @param {import('express').Request} req
    * @param {import('express').Response} res
    */
   updateHairService = async (req, res) => {
-    const { id, title, price, imageLink, category, addOns, duration } =
-      req.body;
+    const { id, title, price, category, duration } = req.body;
 
     try {
       const serviceToUpdate = await HairServicesModel.findById(id);
@@ -94,12 +239,27 @@ export class HairServices {
         return res.status(404).send(response);
       }
 
+      // Update the addons
+      if (title && serviceToUpdate.title !== title) {
+        const addonsToUpdate = await AddOnsModel.find({
+          service: serviceToUpdate.title // old title
+        });
+
+        await Promise.all(
+          addonsToUpdate.map(async (element) => {
+            element.price = element.price;
+            element.duration = element.duration;
+            element.title = element.title;
+            element.service = title;
+            await element.save();
+          })
+        );
+      }
+
       //Update the supplied fields
       serviceToUpdate.title = title ?? serviceToUpdate.title;
       serviceToUpdate.price = price ?? serviceToUpdate.price;
-      serviceToUpdate.imageLink = imageLink ?? serviceToUpdate.imageLink;
       serviceToUpdate.category = category ?? serviceToUpdate.category;
-      serviceToUpdate.addOns = addOns ?? serviceToUpdate.addOns;
       serviceToUpdate.duration = duration ?? serviceToUpdate.duration;
 
       await serviceToUpdate.save();
@@ -116,6 +276,125 @@ export class HairServices {
       const response = ReturnObject(true, updatedService);
       return res.status(200).send(response);
     } catch (error) {
+      console.log({ Error: error?.message ?? error });
+      const response = ReturnObject(
+        false,
+        'Sorry, something went wrong while updating hair service'
+      );
+      return res.status(400).send(response);
+    }
+  };
+
+  /**
+   * Update a category by id
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   */
+  updateCategory = async (req, res) => {
+    const file = req?.file;
+    const { id, title } = req.body;
+
+    try {
+      console.log({ id });
+      if (!id) {
+        const response = ReturnObject(false, 'Invalid request arguemnt');
+        return res.status(404).send(response);
+      }
+
+      const categoryToUpdate = await CategoryModel.findById(id);
+      if (!categoryToUpdate) {
+        const response = ReturnObject(false, 'Category not found');
+        return res.status(404).send(response);
+      }
+
+      const servicesToUpdate = await HairServicesModel.find({
+        category: categoryToUpdate.title // old title
+      });
+
+      // Update the title
+      if (title && categoryToUpdate.title !== title) {
+        await Promise.all(
+          servicesToUpdate.map(async (element) => {
+            element.price = element.price;
+            element.duration = element.duration;
+            element.title = element.title;
+            element.category = title;
+            await element.save();
+          })
+        );
+      }
+
+      let newCoverLink = null;
+      // Update the cover link if file is provided
+      if (file) {
+        //Delete the previous image
+        await this.spacesManager.deleteSingleResource(
+          categoryToUpdate.coverLink
+        );
+
+        //Upload the new image
+        newCoverLink = await this.spacesManager.uploadImage(file?.buffer);
+      }
+
+      categoryToUpdate.title = title ?? categoryToUpdate.title;
+      categoryToUpdate.coverLink = newCoverLink ?? categoryToUpdate?.coverLink;
+
+      await categoryToUpdate.save();
+
+      const updatedService = await CategoryModel.findById(id);
+      if (!updatedService) {
+        const response = ReturnObject(false, 'Updated category was not found');
+        return res.status(404).send(response);
+      }
+
+      const response = ReturnObject(true, updatedService);
+      return res.status(200).send(response);
+    } catch (error) {
+      console.error({ Error: error?.message ?? error });
+      const response = ReturnObject(
+        false,
+        'Sorry, something went wrong while updating hair service'
+      );
+      return res.status(400).send(response);
+    }
+  };
+
+  /**
+   * Update an addon by id
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   */
+  updateAddon = async (req, res) => {
+    const { id, title, price, duration, service } = req.body;
+
+    try {
+      const addOnToUpdate = await AddOnsModel.findById(id);
+      if (!addOnToUpdate) {
+        const response = ReturnObject(false, 'Addon not found');
+        return res.status(404).send(response);
+      }
+
+      //Update the supplied fields
+      addOnToUpdate.title = title ?? addOnToUpdate.title;
+      addOnToUpdate.price = price ?? addOnToUpdate.price;
+      addOnToUpdate.duration = duration ?? addOnToUpdate.duration;
+      addOnToUpdate.service = service ?? addOnToUpdate.service;
+
+      await addOnToUpdate.save();
+
+      const updatedService = await AddOnsModel.findById(id);
+      if (!updatedService) {
+        const response = ReturnObject(
+          false,
+          'Updated addon service was not found'
+        );
+        return res.status(404).send(response);
+      }
+
+      const response = ReturnObject(true, updatedService);
+      return res.status(200).send(response);
+    } catch (error) {
+      console.log({ Error: error?.message ?? error });
       const response = ReturnObject(
         false,
         'Sorry, something went wrong while updating hair service'
@@ -126,7 +405,6 @@ export class HairServices {
 
   /**
    * Returns an object grouped by hair service category
-   * //TODO: This should be a protected route. Add validate request here
    * @param {import('express').Request} req
    * @param {import('express').Response} res
    */
@@ -144,6 +422,44 @@ export class HairServices {
       });
 
       const response = ReturnObject(true, groupedServices);
+      return res.status(200).send(response);
+    } catch (error) {
+      const response = ReturnObject(
+        false,
+        'Sorry, something went wrong while getting hair service by category'
+      );
+      return res.status(400).send(response);
+    }
+  };
+
+  /**
+   * Get all categories
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   */
+  getCategories = async (req, res) => {
+    try {
+      const categories = await CategoryModel.find();
+      const response = ReturnObject(true, categories);
+      return res.status(200).send(response);
+    } catch (error) {
+      const response = ReturnObject(
+        false,
+        'Sorry, something went wrong while getting hair service by category'
+      );
+      return res.status(400).send(response);
+    }
+  };
+
+  /**
+   * Get all add ons
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   */
+  getAddons = async (req, res) => {
+    try {
+      const addOns = await AddOnsModel.find();
+      const response = ReturnObject(true, addOns);
       return res.status(200).send(response);
     } catch (error) {
       const response = ReturnObject(
@@ -182,6 +498,7 @@ export class HairServices {
 
       //Return only the ones that can be completed in the time frame
       allHairServices.forEach((service) => {
+        console.log({ ServiceDuration: service?.duration });
         if (service.duration <= longestConsecutive) {
           if (!availableServices[service.category]) {
             availableServices[service.category] = [];
@@ -189,6 +506,12 @@ export class HairServices {
 
           availableServices[service.category].push(service);
         }
+      });
+
+      console.log({
+        startTime,
+        longestConsecutive,
+        availableSlots
       });
 
       const response = ReturnObject(true, availableServices);
@@ -234,7 +557,7 @@ export class HairServices {
         if (currentCount > 1) {
           longestConsecutive = Math.max(longestConsecutive, currentCount);
         }
-        currentCount = 1; // reset count
+        return longestConsecutive;
       }
     }
 

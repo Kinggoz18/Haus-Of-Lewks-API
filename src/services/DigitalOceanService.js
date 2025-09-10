@@ -6,17 +6,17 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { digitaloceanEnvVariables } from '../config/enviornment.js';
 
-export class DigitalOceanSpacesManger {
+export class DigitalOceanSpacesManager {
   s3Client = null;
 
   constructor() {
     this.s3Client = new S3Client({
-      endpoint: 'https://nyc3.digitaloceanspaces.com',
+      endpoint: 'https://tor1.digitaloceanspaces.com',
       forcePathStyle: false,
-      region: 'nyc3',
+      region: 'tor1',
       credentials: {
         accessKeyId: digitaloceanEnvVariables.spacesKey,
-        secretAccessKey: digitaloceanEnvVariables.spacesKey
+        secretAccessKey: digitaloceanEnvVariables.spacesSecret
       }
     });
   }
@@ -24,12 +24,11 @@ export class DigitalOceanSpacesManger {
   /**
    * Uploads an image to digital ocean spaces
    * @param {Buffer} imageBuffers
-   * @param {{}} metaTag
-   * @returns {String} secure_url
+   * @returns {Promise<String>} secure_url
    */
-  uploadImage = async (imageBuffers, metaTag) => {
+  uploadImage = async (imageBuffers) => {
     try {
-      const buffer = Buffer.concat(imageBuffers);
+      const buffer = imageBuffers;
       const fn = this.generateFileName();
       const key = `images/${fn}.jpg`;
 
@@ -38,12 +37,11 @@ export class DigitalOceanSpacesManger {
           Bucket: digitaloceanEnvVariables.spacesBucket,
           Key: key,
           Body: buffer,
-          ACL: 'public-read',
-          Metadata: metaTag
+          ACL: 'public-read'
         })
       );
 
-      const secure_url = `https://${digitaloceanEnvVariables.spacesBucket}.nyc3.digitaloceanspaces.com/${key}`;
+      const secure_url = `https://${digitaloceanEnvVariables.spacesBucket}.tor1.digitaloceanspaces.com/${key}`;
       return secure_url;
     } catch (error) {
       throw new Error(
@@ -56,12 +54,11 @@ export class DigitalOceanSpacesManger {
   /**
    * Uploads a video to digital ocean spaces
    * @param {Buffer} videoBuffer
-   * @param {{}} metaTag
-   * @returns {String} secure_url
+   * @returns {Promise<String>} secure_url
    */
-  uploadVideo = async (videoBuffer, metaTag) => {
+  uploadVideo = async (videoBuffer) => {
     try {
-      const buffer = Buffer.concat(videoBuffer);
+      const buffer = videoBuffer;
       const fn = this.generateFileName();
       const key = `videos/${fn}.jpg`;
 
@@ -70,12 +67,11 @@ export class DigitalOceanSpacesManger {
           Bucket: digitaloceanEnvVariables.spacesBucket,
           Key: key,
           Body: buffer,
-          ACL: 'public-read',
-          Metadata: metaTag
+          ACL: 'public-read'
         })
       );
 
-      const secure_url = `https://${digitaloceanEnvVariables.spacesBucket}.nyc3.digitaloceanspaces.com/${key}`;
+      const secure_url = `https://${digitaloceanEnvVariables.spacesBucket}.tor1.digitaloceanspaces.com/${key}`;
       return secure_url;
     } catch (error) {
       throw new Error(
@@ -101,8 +97,9 @@ export class DigitalOceanSpacesManger {
       };
 
       const deleteCommand = new DeleteObjectCommand(deleteParams);
-      await this.s3Client.send(deleteCommand);
+      const resposne = await this.s3Client.send(deleteCommand);
     } catch (error) {
+      console.error({ Error: error?.message ?? error });
       throw new Error(
         error?.message ??
           'Something went wrong while deleting resource from digital oceans spaces'

@@ -4,8 +4,13 @@ import { BookingRoute } from './BookingRoutes.js';
 import { ScheduleRoute } from './ScheduleRoutes.js';
 import { UserRoutes } from './UserRoutes.js';
 import { HairServicesRoute } from './HairServices.js';
+import { MulterType } from 'multer';
+import { MediaRoute } from './MediaRoutes.js';
 
 export class APIRoutes {
+  /**
+   * Default constructor
+   */
   constructor() {
     try {
       //Initialize services
@@ -15,6 +20,7 @@ export class APIRoutes {
       this.scheduleRoutes = new ScheduleRoute(services.scheduleService);
       this.bookingRoutes = new BookingRoute(services.bookingService);
       this.hairServiceRoutes = new HairServicesRoute(services.hairServices);
+      this.mediaRoute = new MediaRoute(services.mediaService);
 
       this.router = express.Router();
     } catch (error) {
@@ -26,13 +32,16 @@ export class APIRoutes {
 
   /**
    * Initialize the routes
+   * @param {MulterType} upload
+   * @returns
    */
-  async initAllRoutes() {
+  async initAllRoutes(upload) {
     try {
       await this.userRoutes.initRoutes(this.router);
       await this.scheduleRoutes.initRoutes(this.router);
       await this.bookingRoutes.initRoutes(this.router);
-      await this.hairServiceRoutes.initRoutes(this.router);
+      await this.hairServiceRoutes.initRoutes(this.router, upload);
+      await this.mediaRoute.initRoutes(this.router, upload);
 
       return this.router;
     } catch (error) {

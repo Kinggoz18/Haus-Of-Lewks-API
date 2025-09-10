@@ -112,13 +112,20 @@ export class BookingService {
             { session }
           );
 
+          let totalDuration = Number(service?.duration);
+          const addOns = service?.AddOns;
+
+          addOns.forEach((element) => {
+            totalDuration += Number(element?.duration);
+          });
+
           //Update the available schedule
           const updatedSchedule =
             await this.scheduleService.updateScheduleAfterBooking(
               scheduleId,
               {
                 _id: newBookingReference?.insertedId,
-                duration: service?.duration,
+                duration: totalDuration,
                 startTime: startTime
               },
               scheduleCollection,
